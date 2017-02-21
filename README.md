@@ -42,3 +42,61 @@ With a properly configured app, you should be able to access different table vie
 
 ## Development/Design
 
+`bin/portal-info.php` does the bulk of the work. It is deployed to the public location of an OOD deployment and accessible via /public/portal-info.php. With no query arguments, it will return a JSON array of apps installed at `/var/www/ood/apps/sys`, with each app being a hash of key value pairs:
+
+```json
+[
+  {
+    "name":"bc_osc_abaqus_cae",
+    "git_version":"v1.5.0",
+    "git_remote_origin_url":"git@github.com:OSC/bc_osc_abaqus_cae.git",
+    "git_sha":"ed01092",
+    "path":"/var/www/ood/apps/sys/bc_osc_abaqus_cae"
+  },
+  {
+    "name":"bc_osc_oakley_desktop",
+    "git_version":"v0.0.1",
+    "git_remote_origin_url":"git@github.com:OSC/bc_osc_oakley_desktop.git",
+    "git_sha":"74f534e",
+    "path":"/var/www/ood/apps/sys/bc_osc_oakley_desktop"
+  }
+]
+```
+
+If a query param `path=` is provided, the full path will be the directory that is used.
+
+**We might consider restricting valid paths to directories under wiag home directory or something similar. Also, this should be sanitized before being used. Otherwise, just hardcode the build path when deploying the portal-info.php.**
+
+Here is example code in ruby that has been used in the past to get this information:
+
+```ruby
+  # Get the output of `git describe`
+  #
+  # @return [String] tag or branch or sha
+  def git_version
+    `GIT_DIR=#{path}/.git git describe --always --tags`.strip
+  end
+
+  # Get the current commit sha
+  #
+  # @return [String] sha of the HEAD
+  def git_sha
+    `GIT_DIR=#{path}/.git git rev-parse --short HEAD`.strip
+  end
+
+  # Get the url of the remote origin
+  #
+  # @return [String] url (either ssh or https)
+  def git_remote_origin_url
+    #FIXME: copied from Product@get_git_remote
+    `cd #{path} 2> /dev/null && HOME="" git config --get remote.origin.url 2> /dev/null`.strip
+  end
+  ```
+  
+The Passenger ruby app itself will curl or use a simple library to query this PHP file for this information, parse it, and format the results to the user. Bonus if we do this without using external gems - then we can omit the build step.
+
+An automated test will be added to confirm that apps deployed to production in AweSim and OnDemand are identical in version.
+
+Problems with this design:
+
+1. No easy way to do a diff between the files in two deployed directories; for example, if configuration files have changed such as a `.env.local` or a custom initializer.
