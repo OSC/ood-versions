@@ -102,3 +102,4 @@ Problems with this design:
 1. No easy way to do a diff between the files in two deployed directories; for example, if configuration files have changed such as a `.env.local` or a custom initializer.
     * possible solution to this: we could have a list of common app configuration files we know will change, adding to portals-info.php (or even passing these as query params, relative to the app root) and if the files exist (or don't exist) we can have that specified in the JSON; if they do exist, an MD5 hash of the file contents to suggest whether or not the contents are the same
 
+2. Publicly available means we probably shouldn't be using query params (that can be dangerous).
